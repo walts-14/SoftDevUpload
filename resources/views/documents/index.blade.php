@@ -4,9 +4,7 @@
 <div class="container">
 
     <h2>View List of Document Requirements</h2>
-
     <p>Please read the instructions carefully and make sure to upload a clear photocopy of the following documents:</p>
-
     <ul>
         @foreach ($requiredDocs as $document)
             <li>{{ $document }}</li>
@@ -17,7 +15,6 @@
     <p>Please check the documents you want to upload and ensure all required files are uploaded before submitting.</p>
 
     <h3>Select Documents You Can Upload:</h3>
-    
     @foreach($requiredDocs as $document)
         @php $slug = Str::slug($document); @endphp
         <div class="form-check">
@@ -53,7 +50,7 @@
     <ul id="uploadedList">
         @foreach($documents as $document)
             <li id="doc-{{ $document->id }}" data-doc-type="{{ $document->document_type }}">
-                {{ $document->document_type }} - <strong>{{ basename($document->file_path) }}</strong> - 
+                {{ $document->document_type }} - <strong>{{ basename($document->file_path) }}</strong> -
                 <a href="{{ asset('storage/'.$document->file_path) }}" target="_blank">View</a>
                 <form action="{{ route('documents.remove', $document->id) }}" method="POST" class="d-inline remove-form">
                     @csrf
@@ -74,107 +71,125 @@ document.addEventListener('DOMContentLoaded', function () {
     const uploadFieldsContainer = document.getElementById('uploadFields');
     const uploadBtn = document.getElementById('uploadBtn');
     const submitBtn = document.getElementById('submitBtn');
-    const uploadedList = document.getElementById('uploadedList');
 
-    // Store uploaded documents in a Set for quick lookup
-    let uploadedDocs = new Set(
-        Array.from(uploadedList.children)
-            .map(li => li.getAttribute('data-doc-type'))
-    );
+    // Initialize uploadedDocs from the server
+    let uploadedDocs = new Set(@json($uploadedDocs));
 
-    // Save checked checkboxes to local storage
-    function saveCheckboxState() {
-        const checkedDocs = Array.from(checkboxes)
-            .filter(cb => cb.checked)
-            .map(cb => cb.value);
-        localStorage.setItem('checkedDocuments', JSON.stringify(checkedDocs));
-    }
+    function updateUploadFields() {
+        uploadFieldsContainer.innerHTML = '';
 
-    // Restore previously checked checkboxes
-    function restoreCheckboxState() {
-        const storedDocs = JSON.parse(localStorage.getItem('checkedDocuments') || '[]');
-        checkboxes.forEach(cb => {
-            if (storedDocs.includes(cb.value)) {
-                cb.checked = true;
-                cb.dispatchEvent(new Event('change'));
+        checkboxes.forEach(checkbox => {
+            if (checkbox.checked) {
+                const docType = checkbox.value;
+                const slug = checkbox.id;
+
+                if (!uploadedDocs.has(docType)) {
+                    // Create file input
+                    const fileInput = document.createElement('input');
+                    fileInput.setAttribute('type', 'file');
+                    fileInput.setAttribute('name', `files[]`);
+                    fileInput.setAttribute('class', 'form-control upload-input');
+                    fileInput.setAttribute('accept', '.pdf,.jpeg,.jpg,.png,.docx');
+                    fileInput.dataset.docType = docType;
+
+                    // Create hidden input for document type
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.setAttribute('type', 'hidden');
+                    hiddenInput.setAttribute('name', `document_types[]`);
+                    hiddenInput.value = docType;
+
+                    // Wrap elements in a div
+                    const wrapper = document.createElement('div');
+                    wrapper.setAttribute('id', `upload-${slug}`);
+                    wrapper.innerHTML = `<label>${docType} (PDF, JPEG, PNG, DOCX, max 10MB):</label>`;
+                    wrapper.appendChild(fileInput);
+                    wrapper.appendChild(hiddenInput);
+
+                    uploadFieldsContainer.appendChild(wrapper);
+
+                    fileInput.addEventListener('change', handleFileUpload);
+                }
             }
         });
+
+        checkUploadStatus();
     }
 
-    // Function to check if all selected documents are uploaded
-    function updateSubmitButton() {
-        const checkedDocs = Array.from(checkboxes)
+    function handleFileUpload(event) {
+        const file = event.target.files[0];
+        const docType = event.target.dataset.docType;
+
+        if (file) {
+            const validTypes = ['application/pdf', 'image/jpeg', 'image/png', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+
+            if (!validTypes.includes(file.type) || file.size > 10 * 1024 * 1024) {
+                alert('Invalid file. Only PDF, JPEG, PNG, and DOCX files under 10MB are allowed.');
+                event.target.value = "";
+                uploadedDocs.delete(docType);
+            } else {
+                uploadedDocs.add(docType);
+            }
+        } else {
+            uploadedDocs.delete(docType);
+        }
+
+        checkUploadStatus();
+    }
+
+    function checkUploadStatus() {
+        const selectedDocs = Array.from(checkboxes)
             .filter(cb => cb.checked)
             .map(cb => cb.value);
 
-        const missingUploads = checkedDocs.filter(doc => !uploadedDocs.has(doc));
+        const hasCheckedDocs = selectedDocs.length > 0;
+        const allUploaded = selectedDocs.every(doc => uploadedDocs.has(doc));
 
-        submitBtn.disabled = missingUploads.length > 0;
+        uploadBtn.disabled = !hasCheckedDocs;
+        // Removed the uploadClicked condition so that submit is enabled as soon as all selected docs are uploaded.
+        submitBtn.disabled = !(hasCheckedDocs && allUploaded);
     }
 
-    // Event listener for checkboxes
+    // When a checkbox is toggled, update file inputs accordingly
     checkboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', function () {
-            saveCheckboxState();
-            const docType = this.value;
-            const slug = this.id;
+        checkbox.addEventListener('change', updateUploadFields);
+    });
 
-            if (this.checked && !uploadedDocs.has(docType)) {
-                if (!document.getElementById(`upload-${slug}`)) {
-                    const uploadDiv = document.createElement('div');
-                    uploadDiv.setAttribute('id', `upload-${slug}`);
-                    uploadDiv.innerHTML = `
-                        <label>${docType} (PDF, JPEG, PNG, DOCX, max 10MB):</label>
-                        <input type="file" name="files[${slug}]" class="form-control upload-input" accept=".pdf,.jpeg,.jpg,.png,.docx">
-                        <p class="text-danger error-${slug}" style="display: none;">Invalid file!</p>
-                    `;
-                    uploadFieldsContainer.appendChild(uploadDiv);
+    // Initialize file inputs on load (in case some checkboxes are pre-checked)
+    updateUploadFields();
+});
+</script>
+
+<script>
+document.getElementById('submitBtn').addEventListener('click', function(event) {
+    event.preventDefault();
+    
+    if (!confirm("Are you sure you want to submit your documents?")) {
+        return;
+    }
+
+   /* fetch("{{ route('documents.checkMissingDocs') }}")
+        .then(response => response.json())
+        .then(data => {
+            let missingDocs = data.missingDocs;
+            if (!confirm("Have you uploaded all the required documents?")) {
+                let userEmail = prompt(`You are missing: ${missingDocs.join(", ")}. Please enter your email to receive a reminder within 5 days:`);
+
+                if (userEmail) {
+                    fetch("{{ route('documents.sendReminder') }}", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-CSRF-TOKEN": "{{ csrf_token() }}"
+                        },
+                        body: JSON.stringify({ email: userEmail, missingDocs: missingDocs })
+                    }).then(() => alert("Reminder set. You must submit missing documents within 5 days."));
                 }
             } else {
-                document.getElementById(`upload-${slug}`)?.remove();
+                document.getElementById('uploadForm').submit();
             }
-            updateSubmitButton();
-        });
-    });
-
-    // Event listener for file uploads
-    uploadFieldsContainer.addEventListener('change', function (e) {
-        if (e.target.classList.contains('upload-input')) {
-            const file = e.target.files[0];
-            const docType = e.target.name.replace('files[', '').replace(']', '');
-            const errorElement = document.querySelector(`.error-${docType}`);
-            const uploadField = document.getElementById(`upload-${docType}`);
-
-            if (file) {
-                const validTypes = ['application/pdf', 'image/jpeg', 'image/png', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-                if (!validTypes.includes(file.type) || file.size > 10 * 1024 * 1024) {
-                    errorElement.style.display = 'block';
-                    e.target.value = "";
-                    uploadBtn.disabled = true;
-                } else {
-                    errorElement.style.display = 'none';
-                    uploadBtn.disabled = false;
-
-                    // Simulating successful upload (Replace with AJAX if necessary)
-                    setTimeout(() => {
-                        uploadedDocs.add(docType);
-                        updateSubmitButton();
-                        
-                        // **REMOVE file input after upload**
-                        uploadField?.remove();
-                    }, 1000);
-                }
-            }
-        }
-    });
-
-    // Initialize state
-    restoreCheckboxState();
-    updateSubmitButton();
-});
-
-
-
+        });  */
+}); 
 </script>
+
 
 @endsection

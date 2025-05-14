@@ -3,11 +3,18 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\Document;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Auth;
+use App\Models\DocumentRequirement;
+use Illuminate\Support\Str;
+use App\Models\Student;
+use App\Models\Course;
+use App\Models\StudentDocument;
+use App\Models\StudentCourse;
+use App\Models\Document;
 
 class DocumentController extends Controller
 {
@@ -23,61 +30,53 @@ class DocumentController extends Controller
 
     public function index()
     {
-        if (!auth()->guard('student')->check()) {
-            return redirect()->route('login')->with('error', 'You must be logged in.');
-        }
-    
-        $student = auth()->guard('student')->user();
-        $documents = DocumentRequirement::where('studentID', $student->studentID)->get();
-    
-        return view('documents.index', [
-            'documents' => $documents,
-            'requiredDocs' => $this->requiredDocs,
-            'uploadedDocs' => $documents->pluck('fileName')->toArray()
-        ]);
+        $studentId    = Auth::id();
+
+        // 1️⃣ Fetch all the student’s previously uploaded records
+        $documents = DocumentRequirement::where('studentID', $studentId)->get();
+
+        // 2️⃣ The full list of “required” document names
+        $requiredDocs = $this->requiredDocs;
+
+        // 3️⃣ A simple array of what the student has already uploaded
+        //    (so your JS can disable/“check” those boxes)
+        $uploadedDocs = $documents
+            ->pluck('document_type')   // ← make sure this matches your DB column
+            ->toArray();
+
+        // 4️⃣ Pass all three into your Blade
+        return view('documents.index', compact(
+            'documents',
+            'requiredDocs',
+            'uploadedDocs'
+        ));
     }
 
-    public function upload(Request $request)
-    {
-        $request->validate([
-            'files' => 'required|array',
-            'files.*' => 'file|max:10240|mimes:pdf,jpeg,png,docx',
-            'document_types' => 'required|array',
-            'document_types.*' => 'string'
-        ]);
-    
-        $user = auth()->user(); // Get the authenticated student
-        $studentID = $user->studentID;
-        $courseID = $user->courseID;
-        $files = $request->file('files');
-        $documentTypes = $request->input('document_types');
-    
-        foreach ($files as $index => $file) {
-            $documentType = $documentTypes[$index] ?? null;
-            if ($documentType) {
-                // Rename file based on document type
-                $extension = $file->getClientOriginalExtension();
-                $newFileName = "{$documentType}.{$extension}";
-                $path = $file->storeAs("documents/{$studentID}", $newFileName, 'public');
-    
-                // Save document details in the database
-                DocumentRequirement::create([
-                    'documentID' => uniqid(), // Generate unique ID
-                    'studentID' => $studentID,
-                    'courseID' => $courseID,
-                    'fileName' => $newFileName,
-                    'fileFormat' => $extension,
-                    'fileSize' => $file->getSize(),
-                    'documentStatus' => 'pending', // Default status
-                    'removeFile' => false, // Default false
-                ]);
-            }
-        }
-    
-        return redirect()->route('documents.index')->with('success', 'Files uploaded successfully.');
-    }
-    
-    
+
+
+public function upload(Request $request)
+{
+    $request->validate([
+        'file' => 'required|file|mimes:pdf,jpg,png|max:5120',
+        'courseID' => 'required|exists:courses,courseID',
+        // …
+    ]);
+
+    // Build a new DocumentRequirement record:
+    DocumentRequirement::create([
+        'documentID'     => Str::uuid(),
+        'studentID'      => Auth::id(),          // ← tie it to the current student
+        'courseID'       => $request->courseID,
+        'fileName'       => $request->file->getClientOriginalName(),
+        'fileFormat'     => $request->file->getClientOriginalExtension(),
+        'fileSize'       => $request->file->getSize(),
+        'documentStatus' => 'pending',
+        'removeFile'     => false,
+    ]);
+
+    // move the file, flash message, etc…
+    return back()->with('success', 'Document uploaded!');
+}
 
 public function checkMissingDocs()
 {
@@ -106,7 +105,7 @@ public function sendReminder(Request $request)
     $email = $request->email;
 
     // Send the email (schedule it for 5 days later)
-    \Mail::raw('You have 5 days to submit your missing documents.', function ($message) use ($email) {
+    Mail::raw('You have 5 days to submit your missing documents.', function ($message) use ($email) {
         $message->to($email)
             ->subject('Reminder: Submit Your Missing Documents');
     });

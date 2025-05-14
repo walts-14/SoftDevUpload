@@ -19,6 +19,11 @@ class AuthController extends Controller
     public function showStudentLogin() {
         return view('auth.student-login');
     }
+        public function showStudentRegister()
+    {
+        return view('auth.student-register');
+    }
+
 
     // Admin login
     public function adminLogin(Request $request) {
@@ -38,28 +43,52 @@ class AuthController extends Controller
     }
 
     // Student login
-    public function studentLogin(Request $request) {
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
+        // Student login
+
+
+    public function studentRegister(Request $request)
+    {
+        $data = $request->validate([
+        'name'     => 'required|string|max:255',
+        'email'    => 'required|email|unique:students,email',
+        'password' => 'required|confirmed|min:6',
+        // …
         ]);
-    
-        $student = Student::where('email', $request->email)->first();
-    
-        if ($student && Hash::check($request->password, $student->password)) {
-            Auth::login($student); // Ensure Laravel authentication is used
-            
 
-            return redirect(url('/dbconn'));
-            
-        }
-        console.log('Login Successful');
-        return back()->withErrors(['email' => 'Invalid credentials']);
+        $student = Student::create([
+        'name'     => $data['name'],
+        'email'    => $data['email'],
+        'password' => Hash::make($data['password']),
+        // …
+        ]);
+
+        Auth::login($student);
+        return redirect()->route('documents.index');
     }
 
-    // Logout
-    public function logout() {
-        Session::flush();
-        return redirect('/');
+        public function studentLogin(Request $request)
+{
+    $credentials = $request->only('email', 'password');
+
+    // Try to authenticate using the "student" guard:
+    if (Auth::guard('student')->attempt($credentials)) {
+        // Regenerate session to protect against fixation:
+        $request->session()->regenerate();
+
+        return redirect()->intended(route('documents.index'));
     }
+
+    return back()->withErrors(['email' => 'Invalid credentials']);
 }
+        public function logout()
+        {
+            // Properly log out the user
+            Auth::logout();
+            Session::invalidate();
+            Session::regenerateToken();
+
+            return redirect()->route('login.student');
+        }
+
+        
+    }

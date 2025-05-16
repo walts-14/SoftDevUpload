@@ -20,46 +20,72 @@ class AuthController extends Controller
         return view('auth.student-login');
     }
 
-    // Admin login
-    public function adminLogin(Request $request) {
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
-        ]);
-
-        $admin = Admin::where('email', $request->email)->first();
-
-        if ($admin && Hash::check($request->password, $admin->password)) {
-            Session::put('admin', $admin->id);
-            return redirect('/approving-documents');
-        }
-
-        return back()->withErrors(['email' => 'Invalid credentials']);
+    public function showStudentRegister() {
+        return view('auth.student-register');
     }
 
-    // Student login
+    /**
+     * Student Registration
+     */
+    public function studentRegister(Request $request) {
+        $data = $request->validate([
+            'name'     => 'required|string|max:255',
+            'email'    => 'required|email|unique:students,email',
+            'password' => 'required|confirmed|min:6',
+        ]);
+
+        $student = Student::create([
+            'name'     => $data['name'],
+            'email'    => $data['email'],
+            'password' => Hash::make($data['password']),
+        ]);
+
+        Auth::guard('student')->login($student);
+
+        return redirect()->route('documents.index');
+    }
+
+    /**
+     * Student Login
+     */
     public function studentLogin(Request $request) {
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
-        ]);
-    
-        $student = Student::where('email', $request->email)->first();
-    
-        if ($student && Hash::check($request->password, $student->password)) {
-            Auth::login($student); // Ensure Laravel authentication is used
-            
+        $credentials = $request->only('email', 'password');
 
-            return redirect(url('/dbconn'));
-            
+        if (Auth::guard('student')->attempt($credentials)) {
+            $request->session()->regenerate();
+            return redirect()->intended(route('documents.index'));
         }
-        console.log('Login Successful');
-        return back()->withErrors(['email' => 'Invalid credentials']);
+
+        return back()->withErrors(['email' => 'Invalid student credentials']);
     }
 
-    // Logout
-    public function logout() {
-        Session::flush();
-        return redirect('/');
+    /**
+     * Admin Login
+     */
+    public function adminLogin(Request $request) {
+        $credentials = $request->only('email', 'password');
+
+        if (Auth::guard('admin')->attempt($credentials)) {
+            $request->session()->regenerate();
+            return redirect()->intended(route('admin.applications.list'));
+        }
+
+        return back()->withErrors(['email' => 'Invalid admin credentials']);
+    }
+
+    /**
+     * Logout (both admin or student depending on who's logged in)
+     */
+    public function logout(Request $request) {
+        if (Auth::guard('admin')->check()) {
+            Auth::guard('admin')->logout();
+        } elseif (Auth::guard('student')->check()) {
+            Auth::guard('student')->logout();
+        }
+
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect()->route('login.student');
     }
 }

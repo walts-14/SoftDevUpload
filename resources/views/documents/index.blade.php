@@ -45,6 +45,7 @@
         <div id="uploadFields"></div>
         <button type="submit" id="uploadBtn" class="btn btn-success mt-2" disabled>Upload</button>
     </form>
+    
 
     <h3 class="mt-4">Uploaded Documents:</h3>
     <ul id="uploadedList">
@@ -65,14 +66,29 @@
     <button type="submit" id="submitBtn" class="btn btn-primary mt-2" disabled>Submit</button>
 </div>
 
+<!-- Confirmation form (hidden by default) -->
+<div id="confirmationForm" class="mt-4" style="display: none;">
+    <h4>Have you uploaded all the required documents?</h4>
+    <button type="button" id="confirmYes" class="btn btn-success">Yes</button>
+    <button type="button" id="confirmNo" class="btn btn-warning">No</button>
+</div>
+
+<!-- Message display -->
+<div id="finalMessage" class="alert alert-info mt-3" style="display: none;"></div>
+
+
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const checkboxes = document.querySelectorAll('.doc-checkbox');
     const uploadFieldsContainer = document.getElementById('uploadFields');
     const uploadBtn = document.getElementById('uploadBtn');
     const submitBtn = document.getElementById('submitBtn');
+    const confirmationForm = document.getElementById('confirmationForm');
+    const finalMessage = document.getElementById('finalMessage');
+    const confirmYes = document.getElementById('confirmYes');
+    const confirmNo = document.getElementById('confirmNo');
+    const uploadForm = document.getElementById('uploadForm');
 
-    // Initialize uploadedDocs from the server
     let uploadedDocs = new Set(@json($uploadedDocs));
 
     function updateUploadFields() {
@@ -84,23 +100,20 @@ document.addEventListener('DOMContentLoaded', function () {
                 const slug = checkbox.id;
 
                 if (!uploadedDocs.has(docType)) {
-                    // Create file input
                     const fileInput = document.createElement('input');
-                    fileInput.setAttribute('type', 'file');
-                    fileInput.setAttribute('name', `files[]`);
-                    fileInput.setAttribute('class', 'form-control upload-input');
-                    fileInput.setAttribute('accept', '.pdf,.jpeg,.jpg,.png,.docx');
+                    fileInput.type = 'file';
+                    fileInput.name = 'files[]';
+                    fileInput.className = 'form-control upload-input';
+                    fileInput.accept = '.pdf,.jpeg,.jpg,.png,.docx';
                     fileInput.dataset.docType = docType;
 
-                    // Create hidden input for document type
                     const hiddenInput = document.createElement('input');
-                    hiddenInput.setAttribute('type', 'hidden');
-                    hiddenInput.setAttribute('name', `document_types[]`);
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = 'document_types[]';
                     hiddenInput.value = docType;
 
-                    // Wrap elements in a div
                     const wrapper = document.createElement('div');
-                    wrapper.setAttribute('id', `upload-${slug}`);
+                    wrapper.id = `upload-${slug}`;
                     wrapper.innerHTML = `<label>${docType} (PDF, JPEG, PNG, DOCX, max 10MB):</label>`;
                     wrapper.appendChild(fileInput);
                     wrapper.appendChild(hiddenInput);
@@ -145,51 +158,116 @@ document.addEventListener('DOMContentLoaded', function () {
         const allUploaded = selectedDocs.every(doc => uploadedDocs.has(doc));
 
         uploadBtn.disabled = !hasCheckedDocs;
-        // Removed the uploadClicked condition so that submit is enabled as soon as all selected docs are uploaded.
         submitBtn.disabled = !(hasCheckedDocs && allUploaded);
     }
 
-    // When a checkbox is toggled, update file inputs accordingly
     checkboxes.forEach(checkbox => {
         checkbox.addEventListener('change', updateUploadFields);
     });
 
-    // Initialize file inputs on load (in case some checkboxes are pre-checked)
     updateUploadFields();
-});
-</script>
 
-<script>
-document.getElementById('submitBtn').addEventListener('click', function(event) {
-    event.preventDefault();
-    
-    if (!confirm("Are you sure you want to submit your documents?")) {
-        return;
-    }
+    // === Confirmation Logic ===
+    submitBtn.addEventListener('click', function (event) {
+        event.preventDefault();
+        confirmationForm.style.display = 'block';
+        finalMessage.style.display = 'none';
+    });
 
-   /* fetch("{{ route('documents.checkMissingDocs') }}")
+    confirmYes.addEventListener('click', function () {
+        fetch("{{ route('documents.submitApplication') }}", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRF-TOKEN": "{{ csrf_token() }}"
+            },
+            body: JSON.stringify({})
+        })
         .then(response => response.json())
         .then(data => {
-            let missingDocs = data.missingDocs;
-            if (!confirm("Have you uploaded all the required documents?")) {
-                let userEmail = prompt(`You are missing: ${missingDocs.join(", ")}. Please enter your email to receive a reminder within 5 days:`);
+            showMessage(data.message, "success");
+            // Optionally hide the confirmation form
+            confirmationForm.style.display = 'none';
+            // Optionally disable submit button to prevent resubmission
+            submitBtn.disabled = true;
+        })
+        .catch(error => {
+            console.error(error);
+            showMessage("Failed to submit application. Please try again.", "danger");
+        });
+    });
 
-                if (userEmail) {
-                    fetch("{{ route('documents.sendReminder') }}", {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "X-CSRF-TOKEN": "{{ csrf_token() }}"
-                        },
-                        body: JSON.stringify({ email: userEmail, missingDocs: missingDocs })
-                    }).then(() => alert("Reminder set. You must submit missing documents within 5 days."));
-                }
-            } else {
-                document.getElementById('uploadForm').submit();
-            }
-        });  */
-}); 
+    confirmNo.addEventListener('click', function () {
+        // Hide the confirmation form
+    confirmationForm.style.display = 'none';
+
+    // Show email prompt for reminder
+    finalMessage.innerHTML = `
+        <div class="mb-3">
+            <p>Please follow up your missing requirements within 3 days.</p>
+            <label for="reminderEmail">Enter your email address to receive a reminder:</label>
+            <input type="email" id="reminderEmail" class="form-control mb-2" placeholder="example@gmail.com" required>
+            <button id="reminderDone" class="btn btn-primary">Done</button>
+        </div>
+    `;
+    finalMessage.className = 'alert alert-warning mt-3';
+    finalMessage.style.display = 'block';
+
+    // Add event listener to the "Done" button
+    document.getElementById('reminderDone').addEventListener('click', function () {
+        const email = document.getElementById('reminderEmail').value;
+
+        if (!email || !email.includes('@')) {
+            alert('Please enter a valid email address.');
+            return;
+        }
+
+        fetch("{{ route('documents.sendReminder') }}", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRF-TOKEN": "{{ csrf_token() }}"
+            },
+            body: JSON.stringify({ email: email })
+        })
+        .then(response => response.json())
+        .then(data => {
+    // After sending reminder, also submit the application
+    fetch("{{ route('documents.submitApplication') }}", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-TOKEN": "{{ csrf_token() }}"
+        },
+        body: JSON.stringify({})
+    })
+    .then(res => res.json())
+    .then(submitData => {
+        finalMessage.className = 'alert alert-success mt-3';
+        finalMessage.innerHTML = `
+            Reminder email sent successfully. Please check your inbox.<br>
+            <strong>${submitData.message}</strong>
+        `;
+        confirmationForm.style.display = 'none';
+        submitBtn.disabled = true;
+    })
+    .catch(error => {
+        console.error(error);
+        finalMessage.className = 'alert alert-danger mt-3';
+        finalMessage.innerHTML = 'Application reminder sent, but submission failed. Please try again.';
+    });
+})
+    });
+    
+    });
+
+    function showMessage(message, type) {
+        finalMessage.className = `alert alert-${type} mt-3`;
+        finalMessage.innerHTML = message;
+        finalMessage.style.display = 'block';
+        confirmationForm.style.display = 'none';
+    }
+});
 </script>
-
 
 @endsection

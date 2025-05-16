@@ -22,5 +22,17 @@ class Student extends Authenticatable
     public function setPasswordAttribute($value) {
         $this->attributes['password'] = bcrypt($value);
     }
+
+    public function getRouteKeyName()
+    {
+        return 'studentID';  // Tell Laravel to use 'studentID' instead of 'id' for route model binding
+    }
+
+    public function documents()
+    {
+        return $this->hasMany(Document::class, 'user_id', 'studentID');
+    }
+
+
 }
 

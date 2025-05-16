@@ -14,15 +14,18 @@ class DocumentRequirement extends Model
     public $incrementing = false; // Since documentID is a string
 
     protected $fillable = [
-        'documentID',
-        'studentID',
-        'courseID',
-        'fileName',
-        'fileFormat',
-        'fileSize',
-        'documentStatus',
-        'removeFile'
-    ];
+    'documentID',
+    'studentID',
+    'courseID',
+    'document_type',
+    'fileName',
+    'file_path',
+    'fileFormat',
+    'fileSize',
+    'documentStatus',
+    'removeFile',
+];
+
 
     // Relationships
     public function student()

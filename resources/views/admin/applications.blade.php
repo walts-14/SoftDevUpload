@@ -16,6 +16,7 @@
             <thead>
                 <tr>
                     <th>Student ID</th>
+                    <th>Course ID</th>
                     <th>Name</th>
                     <th>Email</th>
                     <th>Application Status</th>
@@ -26,6 +27,7 @@
                     @foreach ($applications as $student)
                     <tr>
                         <td>{{ $student->studentID }}</td>
+                        <td>{{ $student->courseID }}</td>
                         <td>{{ $student->name }}</td>
                         <td>{{ $student->email }}</td>
                         <td>{{ ucfirst($student->application_status) }}</td>

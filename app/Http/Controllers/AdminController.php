@@ -4,18 +4,28 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Student;
+use App\Models\CourseRequirement;
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
 
 class AdminController extends Controller
 {
-    // Show list of pending applications directly
-    public function listApplications()
-    {
-    $applications = Student::with('documents')
-        ->where('application_status', 'pending')
-        ->get();
 
-    return view('admin.applications', compact('applications'));
-    }
+    
+    // Show list of pending applications directly
+        public function listApplications()
+        {
+            $applications = Student::with('documents')
+                ->where('application_status', 'pending')
+                ->get();
+
+            foreach ($applications as $student) {
+                $student->missing_documents = $this->getMissingDocuments($student);
+            }
+
+            return view('admin.applications', compact('applications'));
+        }
+
 
     public function approveApplication(Student $student)
     {
@@ -53,6 +63,25 @@ class AdminController extends Controller
         $applications = User::with('documents')->get(); // eager-load documents
         return view('admin.applications', compact('applications'));
     }
+
+    private function getMissingDocuments($student)
+    {
+        if (!$student->courseID) return ['Course not assigned'];
+
+        $requiredDocs = CourseRequirement::where('courseID', $student->courseID)
+                        ->pluck('document_type')
+                        ->map(fn($doc) => strtolower($doc))
+                        ->toArray();
+
+        $uploadedDocs = $student->documents->pluck('document_type')
+                        ->map(fn($doc) => strtolower($doc))
+                        ->toArray();
+
+        $missing = array_diff($requiredDocs, $uploadedDocs);
+
+        return array_map('ucwords', $missing); // Format nicely
+    }
+
 
 
 }

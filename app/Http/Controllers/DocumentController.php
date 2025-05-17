@@ -9,12 +9,11 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\Document;    // ← your new model
 use Illuminate\Support\Str;
 use App\Models\Student;
-use App\Models\Course;
 use App\Models\StudentDocument;
 use App\Models\StudentCourse;
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
-
+use App\Models\CourseRequirement;
 
 
 class DocumentController extends Controller
@@ -30,67 +29,62 @@ class DocumentController extends Controller
     ];
 
    public function index()
-{
-    $studentId    = Auth::id();
+    {
+        $student   = Auth::user();
+        $courseID  = $student->courseID;
 
-    // Pull directly from your `documents` table via the new model:
-    $documents = Document::where('user_id', $studentId)->get();
+        // 1️⃣ all docs required for this course
+        $required  = CourseRequirement::where('courseID', $courseID)
+                                     ->pluck('document_type')
+                                     ->toArray();
 
-    $requiredDocs = $this->requiredDocs;
-    $uploadedDocs = $documents->pluck('document_type')->toArray();
+        // 2️⃣ what this student already uploaded
+        $uploaded  = Document::where('user_id', $student->studentID)
+                             ->pluck('document_type')
+                             ->toArray();
 
-    return view('documents.index', compact(
-        'documents',
-        'requiredDocs',
-        'uploadedDocs'
-    ));
-}
-
-
-    public function upload(Request $request)
-{
-    $request->validate([
-        'files'            => 'required|array',
-        'files.*'          => 'file|mimes:pdf,jpg,png,docx|max:10240',
-        'document_types'   => 'required|array',
-        'document_types.*' => 'string',
-        // 'courseID'         => 'required|exists:courses,courseID',
-    ]);
-
-    $studentId = Auth::id();
-    $courseId  = $request->courseID;
-
-    foreach ($request->file('files') as $idx => $uploadedFile) {
-        $docType = $request->input('document_types')[$idx] ?? 'Unknown';
-
-        // store the file under storage/app/public/documents/{studentId}/
-        $path = $uploadedFile->store(
-            "documents/{$studentId}",
-            'public'
-        );
-
-        // insert into the `documents` table
-        Document::create([
-            'user_id'        => $studentId,
-            'document_type'  => $docType,
-            'file_path'      => $path,
-            'status'         => 'Pending',
-            'rejection_reason' => null,
+        return view('documents.index', [
+            'requiredDocs' => $required,
+            'uploadedDocs' => $uploaded,
+            'documents'   => Document::where('user_id', $student->studentID)->get(),
         ]);
     }
 
-    return back()->with('success', 'Documents uploaded!');
-}
-
-
-
-    public function checkMissingDocs()
+    public function upload(Request $request)
     {
-        $uploadedDocs = Document::pluck('document_type')->toArray();
-        $missingDocs = array_diff($this->requiredDocs, $uploadedDocs);
+        $request->validate([
+            'files'            => 'required|array',
+            'files.*'          => 'file|mimes:pdf,jpg,png,docx|max:10240',
+            'document_types'   => 'required|array',
+            'document_types.*' => 'string',
+        ]);
 
-        return response()->json(['missingDocs' => $missingDocs]);
+        $studentId = Auth::id();
+
+        foreach ($request->file('files') as $idx => $file) {
+            $docType = $request->document_types[$idx] ?? 'Unknown';
+            $path    = $file->store("documents/{$studentId}", 'public');
+
+            Document::create([
+                'user_id'       => $studentId,
+                'document_type' => $docType,
+                'file_path'     => $path,
+                'status'        => 'Pending',
+            ]);
+        }
+
+        return back()->with('success', 'Documents uploaded!');
     }
+
+
+
+    // public function checkMissingDocs()
+    // {
+    //     $uploadedDocs = Document::pluck('document_type')->toArray();
+    //     $missingDocs = array_diff($this->requiredDocs, $uploadedDocs);
+
+    //     return response()->json(['missingDocs' => $missingDocs]);
+    // }
 
    public function remove($id)
 {

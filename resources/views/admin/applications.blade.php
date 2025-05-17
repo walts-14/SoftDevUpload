@@ -58,6 +58,21 @@
                                 @endforelse
                             </ul>
 
+                                @if (!empty($student->missing_documents))
+                                    <div class="alert alert-warning mt-2">
+                                        <strong>Missing Documents:</strong>
+                                        <ul>
+                                            @foreach ($student->missing_documents as $doc)
+                                                <li>{{ $doc }}</li>
+                                            @endforeach
+                                        </ul>
+                                    </div>
+                                @else
+                                    <div class="text-success mt-2">
+                                        ✅ All required documents submitted.
+                                    </div>
+                                @endif
+
                             <form action="{{ route('admin.applications.reject', $student->studentID) }}" method="POST" class="mt-2">
                                 @csrf
                                 <input type="text" name="rejection_reason" placeholder="Reason for rejection" required class="form-control mb-2">

@@ -58,7 +58,24 @@
     @if($applicationStatus !== 'approved')
       <div class="d-flex gap-3 mb-4">
         <button class="btn btn-success btn-large" onclick="document.getElementById('uploadSection').scrollIntoView();">Upload Documents</button>
-        <button class="btn btn-outline-success btn-large" onclick="document.getElementById('submitBtn').scrollIntoView();">See Application Status</button>
+       <button id="seeStatusBtn" class="btn btn-outline-success btn-large">
+        See Application Status
+        </button>
+
+        <!-- Application Status (hidden by default) -->
+        <div id="statusSection" class="mt-4" style="display:none;">
+        <h4>Application Status:
+            @if ($applicationStatus === 'approved')
+            <span class="badge bg-success">Approved</span>
+            @elseif ($applicationStatus === 'pending')
+            <span class="badge bg-warning text-dark">Pending</span>
+            @elseif ($applicationStatus === 'rejected')
+            <span class="badge bg-danger">Rejected</span>
+            @else
+            <span class="badge bg-secondary">Not Submitted</span>
+            @endif
+        </h4>
+        </div>
       </div>
 
       <div id="uploadSection" class="card mb-4">
@@ -251,6 +268,13 @@ document.addEventListener('DOMContentLoaded', function () {
         finalMessage.style.display = 'block';
         confirmationForm.style.display = 'none';
     }
+    // === Show Application Status ===
+    document.getElementById('seeStatusBtn').addEventListener('click', function() {
+    const statusDiv = document.getElementById('statusSection');
+    statusDiv.style.display = 'block';
+    statusDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
 });
 </script>
 @endsection

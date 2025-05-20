@@ -37,4 +37,6 @@ class DocumentRequirement extends Model
     {
         return $this->belongsTo(Course::class, 'courseID', 'courseID');
     }
+
+    
 }

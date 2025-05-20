@@ -31,4 +31,10 @@ class Document extends Model
         return $this->belongsTo(Student::class, 'user_id', 'studentID');
     }
 
+        public function requirements()
+    {
+        return $this->hasMany(CourseRequirement::class, 'courseID', 'courseID');
+    }
+
+
 }

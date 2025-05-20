@@ -33,6 +33,12 @@ class Student extends Authenticatable
         return $this->hasMany(Document::class, 'user_id', 'studentID');
     }
 
+        public function course()
+    {
+        return $this->belongsTo(Course::class, 'courseID', 'courseID');
+    }
+
+
 
 }
 

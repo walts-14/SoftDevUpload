@@ -9,7 +9,6 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\Document;    // ← your new model
 use Illuminate\Support\Str;
 use App\Models\Student;
-use App\Models\Course;
 use App\Models\StudentDocument;
 use App\Models\StudentCourse;
 use PHPMailer\PHPMailer\PHPMailer;
@@ -79,13 +78,13 @@ class DocumentController extends Controller
 
 
 
-    public function checkMissingDocs()
-    {
-        $uploadedDocs = Document::pluck('document_type')->toArray();
-        $missingDocs = array_diff($this->requiredDocs, $uploadedDocs);
+    // public function checkMissingDocs()
+    // {
+    //     $uploadedDocs = Document::pluck('document_type')->toArray();
+    //     $missingDocs = array_diff($this->requiredDocs, $uploadedDocs);
 
-        return response()->json(['missingDocs' => $missingDocs]);
-    }
+    //     return response()->json(['missingDocs' => $missingDocs]);
+    // }
 
    public function remove($id)
 {

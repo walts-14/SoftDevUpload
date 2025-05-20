@@ -16,6 +16,7 @@
             <thead>
                 <tr>
                     <th>Student ID</th>
+                    <th>Course ID</th>
                     <th>Name</th>
                     <th>Email</th>
                     <th>Application Status</th>
@@ -26,6 +27,7 @@
                     @foreach ($applications as $student)
                     <tr>
                         <td>{{ $student->studentID }}</td>
+                        <td>{{ $student->courseID }}</td>
                         <td>{{ $student->name }}</td>
                         <td>{{ $student->email }}</td>
                         <td>{{ ucfirst($student->application_status) }}</td>
@@ -57,6 +59,21 @@
                                     <li>No documents uploaded.</li>
                                 @endforelse
                             </ul>
+
+                                @if (!empty($student->missing_documents))
+                                    <div class="alert alert-warning mt-2">
+                                        <strong>Missing Documents:</strong>
+                                        <ul>
+                                            @foreach ($student->missing_documents as $doc)
+                                                <li>{{ $doc }}</li>
+                                            @endforeach
+                                        </ul>
+                                    </div>
+                                @else
+                                    <div class="text-success mt-2">
+                                        ✅ All required documents submitted.
+                                    </div>
+                                @endif
 
                             <form action="{{ route('admin.applications.reject', $student->studentID) }}" method="POST" class="mt-2">
                                 @csrf

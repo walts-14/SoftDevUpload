@@ -32,11 +32,11 @@
                         <td>{{ $student->email }}</td>
                         <td>{{ ucfirst($student->application_status) }}</td>
                         <td>
-                            <form action="{{ route('admin.applications.approve', ['student' => $student->studentID]) }}" method="POST" style="display:inline-block;">
-                                @csrf
-                                <button type="submit" class="btn btn-success btn-sm">Approve</button>
-                            </form>
-
+                                <form action="{{ route('admin.applications.approve', ['student' => $student->studentID]) }}" method="POST" style="display:inline-block;">
+                                    @csrf
+                                    <input type="email" name="email" placeholder="Student email" required class="form-control mb-1" />
+                                    <button type="submit" class="btn btn-success btn-sm">Approve</button>
+                                </form>
                             <!-- Button to toggle document details -->
                             <button class="btn btn-info btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#docs-{{ $student->studentID }}">View Documents</button>
                         </td>
@@ -78,6 +78,7 @@
                             <form action="{{ route('admin.applications.reject', $student->studentID) }}" method="POST" class="mt-2">
                                 @csrf
                                 <input type="text" name="rejection_reason" placeholder="Reason for rejection" required class="form-control mb-2">
+                                <input type="email" name="email" placeholder="Student email" required class="form-control mb-2">
                                 <button class="btn btn-danger btn-sm">Reject</button>
                             </form>
                         </td>

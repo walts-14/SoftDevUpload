@@ -19,9 +19,9 @@ class Student extends Authenticatable
     protected $hidden = ['password'];
 
     // Automatically hash password when setting it
-    public function setPasswordAttribute($value) {
-        $this->attributes['password'] = bcrypt($value);
-    }
+    // public function setPasswordAttribute($value) {
+    //     $this->attributes['password'] = bcrypt($value);
+    // }
 
     public function getRouteKeyName()
     {

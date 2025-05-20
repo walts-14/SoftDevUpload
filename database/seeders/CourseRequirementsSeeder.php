@@ -51,5 +51,18 @@ class CourseRequirementsSeeder extends Seeder
         //
         // 4️⃣ (Optional) Add other courses below…
         //
+                $itDocs = [
+            'Birth Certificate',
+            'SF10',
+            'Report Card',
+            'Application Form',
+            'Form 137',
+        ];
+        foreach ($itDocs as $docType) {
+            CourseRequirement::firstOrCreate([
+                'courseID'      => 'IS301',
+                'document_type' => $docType,
+            ]);
+        }
     }
 }

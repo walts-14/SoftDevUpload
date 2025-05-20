@@ -14,38 +14,43 @@
     <h2>Document Submission</h2>
     <p>Please check the documents you want to upload and ensure all required files are uploaded before submitting.</p>
 
-    <h3>Select Documents You Can Upload:</h3>
-    @foreach($requiredDocs as $document)
-        @php $slug = Str::slug($document); @endphp
-        <div class="form-check">
-            <input type="checkbox" class="form-check-input doc-checkbox" id="{{ $slug }}" name="selected_documents[]" value="{{ $document }}" 
-            {{ in_array($document, $uploadedDocs) ? 'checked' : '' }}>
-            <label class="form-check-label" for="{{ $slug }}">{{ $document }}</label>
+    @if ($applicationStatus !== 'approved')
+        <h3>Select Documents You Can Upload:</h3>
+        @foreach($requiredDocs as $document)
+            @php $slug = Str::slug($document); @endphp
+            <div class="form-check">
+                <input type="checkbox" class="form-check-input doc-checkbox" id="{{ $slug }}" name="selected_documents[]" value="{{ $document }}" 
+                {{ in_array($document, $uploadedDocs) ? 'checked' : '' }}>
+                <label class="form-check-label" for="{{ $slug }}">{{ $document }}</label>
+            </div>
+        @endforeach
+
+        <h3 class="mt-3">Upload Files</h3>
+
+        @if (session('success'))
+            <div class="alert alert-success">{{ session('success') }}</div>
+        @endif
+
+        @if ($errors->any())
+            <div class="alert alert-danger">
+                <ul>
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
+        <form id="uploadForm" action="{{ route('documents.upload') }}" method="POST" enctype="multipart/form-data">
+            @csrf
+            <div id="uploadFields"></div>
+            <button type="submit" id="uploadBtn" class="btn btn-success mt-2" disabled>Upload</button>
+        </form>
+    @else
+        <div class="alert alert-info mt-3">
+            Your documents have been approved. You cannot upload or modify your documents anymore.
         </div>
-    @endforeach
-
-    <h3 class="mt-3">Upload Files</h3>
-
-    @if (session('success'))
-        <div class="alert alert-success">{{ session('success') }}</div>
     @endif
-
-    @if ($errors->any())
-        <div class="alert alert-danger">
-            <ul>
-                @foreach ($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-        </div>
-    @endif
-
-    <form id="uploadForm" action="{{ route('documents.upload') }}" method="POST" enctype="multipart/form-data">
-        @csrf
-        <div id="uploadFields"></div>
-        <button type="submit" id="uploadBtn" class="btn btn-success mt-2" disabled>Upload</button>
-    </form>
-    
 
     <h3 class="mt-4">Uploaded Documents:</h3>
     <ul id="uploadedList">
@@ -53,11 +58,13 @@
             <li id="doc-{{ $document->id }}" data-doc-type="{{ $document->document_type }}">
                 {{ $document->document_type }} - <strong>{{ basename($document->file_path) }}</strong> -
                 <a href="{{ asset('storage/'.$document->file_path) }}" target="_blank">View</a>
-                <form action="{{ route('documents.remove', $document->id) }}" method="POST" class="d-inline remove-form">
+                <form action="{{ route('documents.remove', $document->id) }}" method="POST" class="d-inline remove-form"
+                    @if ($applicationStatus = 'approved') style="display:none;" @endif>
                     @csrf
                     @method('DELETE')
                     <button type="submit" class="btn btn-danger btn-sm">Remove</button>
                 </form>
+
             </li>
         @endforeach
     </ul>

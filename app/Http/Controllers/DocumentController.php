@@ -28,30 +28,35 @@ class DocumentController extends Controller
         'School ID or a Valid ID',
     ];
 
-   public function index()
+    public function index()
     {
         $student   = Auth::user();
         $courseID  = $student->courseID;
 
-        // 1️⃣ all docs required for this course
         $required  = CourseRequirement::where('courseID', $courseID)
-                                     ->pluck('document_type')
-                                     ->toArray();
+                                    ->pluck('document_type')
+                                    ->toArray();
 
-        // 2️⃣ what this student already uploaded
         $uploaded  = Document::where('user_id', $student->studentID)
-                             ->pluck('document_type')
-                             ->toArray();
+                            ->pluck('document_type')
+                            ->toArray();
 
         return view('documents.index', [
-            'requiredDocs' => $required,
-            'uploadedDocs' => $uploaded,
-            'documents'   => Document::where('user_id', $student->studentID)->get(),
+            'requiredDocs'      => $required,
+            'uploadedDocs'      => $uploaded,
+            'documents'         => Document::where('user_id', $student->studentID)->get(),
+            'applicationStatus' => $student->application_status
         ]);
     }
 
     public function upload(Request $request)
     {
+        $student = Auth::user();
+
+        if ($student->application_status === 'approved') {
+            return back()->with('error', 'You are not allowed to upload documents after approval.');
+        }
+
         $request->validate([
             'files'            => 'required|array',
             'files.*'          => 'file|mimes:pdf,jpg,png,docx|max:10240',
@@ -59,14 +64,12 @@ class DocumentController extends Controller
             'document_types.*' => 'string',
         ]);
 
-        $studentId = Auth::id();
-
         foreach ($request->file('files') as $idx => $file) {
             $docType = $request->document_types[$idx] ?? 'Unknown';
-            $path    = $file->store("documents/{$studentId}", 'public');
+            $path    = $file->store("documents/{$student->studentID}", 'public');
 
             Document::create([
-                'user_id'       => $studentId,
+                'user_id'       => $student->studentID,
                 'document_type' => $docType,
                 'file_path'     => $path,
                 'status'        => 'Pending',
@@ -75,7 +78,6 @@ class DocumentController extends Controller
 
         return back()->with('success', 'Documents uploaded!');
     }
-
 
 
     // public function checkMissingDocs()

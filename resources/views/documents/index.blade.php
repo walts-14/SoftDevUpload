@@ -3,6 +3,18 @@
 @section('content')
 <div class="container">
 
+<h4>Application Status:
+    @if ($applicationStatus === 'approved')
+        <span class="badge bg-success">Approved</span>
+    @elseif ($applicationStatus === 'pending')
+        <span class="badge bg-warning text-dark">Pending</span>
+    @elseif ($applicationStatus === 'rejected')
+        <span class="badge bg-danger">Rejected</span>
+    @else
+        <span class="badge bg-secondary">Not Submitted</span>
+    @endif
+</h4>
+
     <h2>View List of Document Requirements</h2>
     <p>Please read the instructions carefully and make sure to upload a clear photocopy of the following documents:</p>
     <ul>
